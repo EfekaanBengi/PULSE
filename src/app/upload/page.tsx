@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, Video, X, Check, AlertCircle } from "lucide-react";
 import { useAccount } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { uploadVideo, UploadProgress } from "@/lib/api";
+import { uploadVideo, UploadProgress, getUser } from "@/lib/api";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -20,6 +20,19 @@ export default function UploadPage() {
   const [price, setPrice] = useState(1);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [hasSubscription, setHasSubscription] = useState(false);
+
+  useEffect(() => {
+    async function checkSubscription() {
+      if (address) {
+        const user = await getUser(address);
+        if (user?.subscription_contract_address) {
+          setHasSubscription(true);
+        }
+      }
+    }
+    checkSubscription();
+  }, [address]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -157,23 +170,38 @@ export default function UploadPage() {
         </p>
       </div>
 
+
+
       {/* Exclusive Toggle */}
       <div className="mb-6 p-4 bg-white/5 rounded-xl border border-white/10">
         <div className="flex items-center justify-between">
           <div className="flex-1">
             <h3 className="text-white font-medium mb-1">Exclusive Content</h3>
-            <p className="text-white/60 text-sm">Require payment to unlock</p>
+            <p className="text-white/60 text-sm">
+              {hasSubscription
+                ? "Require payment to unlock"
+                : "Create a subscription profile to enable this"}
+            </p>
           </div>
           <button
-            onClick={() => setIsExclusive(!isExclusive)}
-            className={`relative w-14 h-8 rounded-full transition-colors ${
-              isExclusive ? "bg-[#5F31E8]" : "bg-white/20"
-            }`}
+            disabled={!hasSubscription}
+            onClick={() => {
+              if (hasSubscription) {
+                setIsExclusive(!isExclusive);
+              } else {
+                router.push("/create-subscription");
+              }
+            }}
+            className={`relative w-14 h-8 rounded-full transition-colors ${!hasSubscription
+              ? "bg-white/10 cursor-not-allowed opacity-50"
+              : isExclusive
+                ? "bg-[#5F31E8]"
+                : "bg-white/20"
+              }`}
           >
             <div
-              className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-transform ${
-                isExclusive ? "left-7" : "left-1"
-              }`}
+              className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-transform ${isExclusive ? "left-7" : "left-1"
+                }`}
             />
           </button>
         </div>
@@ -212,13 +240,12 @@ export default function UploadPage() {
           </div>
           <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                uploadProgress.status === "error"
-                  ? "bg-red-500"
-                  : uploadProgress.status === "complete"
+              className={`h-full rounded-full transition-all duration-300 ${uploadProgress.status === "error"
+                ? "bg-red-500"
+                : uploadProgress.status === "complete"
                   ? "bg-green-500"
                   : "bg-gradient-to-r from-[#5F31E8] to-[#7C4DFF]"
-              }`}
+                }`}
               style={{ width: `${uploadProgress.progress}%` }}
             />
           </div>

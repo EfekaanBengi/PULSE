@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Mousewheel, Keyboard } from "swiper/modules";
 import type { Swiper as SwiperType } from "swiper";
@@ -12,6 +13,8 @@ import type { Video } from "@/types/database";
 import "swiper/css";
 
 export default function VideoFeed() {
+  const searchParams = useSearchParams();
+  const initialVideoId = searchParams.get("video");
   const [videos, setVideos] = useState<Video[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,12 +23,22 @@ export default function VideoFeed() {
     async function fetchVideos() {
       setIsLoading(true);
       const data = await getVideos();
+
+      // If a specific video is requested, move it to the front
+      if (initialVideoId) {
+        const targetIndex = data.findIndex(v => v.id === initialVideoId);
+        if (targetIndex !== -1) {
+          const targetVideo = data.splice(targetIndex, 1)[0];
+          data.unshift(targetVideo);
+        }
+      }
+
       setVideos(data);
       setIsLoading(false);
     }
 
     fetchVideos();
-  }, []);
+  }, [initialVideoId]);
 
   const handleSlideChange = (swiper: SwiperType) => {
     setActiveIndex(swiper.activeIndex);
@@ -69,12 +82,13 @@ export default function VideoFeed() {
     <Swiper
       direction="vertical"
       modules={[Mousewheel, Keyboard]}
-      mousewheel={{ sensitivity: 1 }}
+      mousewheel={{ forceToAxis: true, sensitivity: 1, thresholdDelta: 50 }}
       keyboard={{ enabled: true }}
       slidesPerView={1}
+      speed={500}
+      threshold={10}
       className="h-[100dvh] w-full bg-black"
       onSlideChange={handleSlideChange}
-      threshold={10}
       resistance={true}
       resistanceRatio={0.85}
     >

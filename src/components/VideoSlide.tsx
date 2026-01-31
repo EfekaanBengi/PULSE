@@ -1,11 +1,14 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
-import { Heart, Share2, MessageCircle, Lock, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { Heart, Share2, MessageCircle, Lock, Check, Volume2, VolumeX } from "lucide-react";
 import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { DUMMY_CREATOR_ADDRESS } from "@/lib/web3";
+import CommentDrawer from "./CommentDrawer";
 import type { Video } from "@/types/database";
 
 interface VideoSlideProps {
@@ -14,11 +17,19 @@ interface VideoSlideProps {
 }
 
 export default function VideoSlide({ video, isActive }: VideoSlideProps) {
+  const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(() => Math.floor(Math.random() * 5000) + 100);
+  const [showLikeAnimation, setShowLikeAnimation] = useState(false);
+  const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
+  const [doubleTapPosition, setDoubleTapPosition] = useState({ x: 0, y: 0 });
+  const lastTapRef = useRef<number>(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [isCommentDrawerOpen, setIsCommentDrawerOpen] = useState(false);
+  const [commentCount] = useState(() => Math.floor(Math.random() * 500) + 10);
 
   const { isConnected } = useAccount();
   const { openConnectModal } = useConnectModal();
@@ -43,7 +54,7 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
 
       // Auto-play the video after unlocking
       if (videoRef.current && isActive) {
-        videoRef.current.play().catch(() => {});
+        videoRef.current.play().catch(() => { });
       }
 
       // Hide toast after 3 seconds
@@ -74,12 +85,40 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
     }
   }, [isActive, video.is_exclusive, isUnlocked]);
 
-  const handleVideoTap = () => {
+  const handleVideoTap = (e: React.MouseEvent<HTMLVideoElement>) => {
     if (!videoRef.current) return;
 
     // Prevent interaction if exclusive and locked
     if (video.is_exclusive && !isUnlocked) return;
 
+    const now = Date.now();
+    const timeSinceLastTap = now - lastTapRef.current;
+    lastTapRef.current = now;
+
+    // Double tap detected (within 300ms)
+    if (timeSinceLastTap < 300) {
+      // Get tap position relative to the video element
+      const rect = e.currentTarget.getBoundingClientRect();
+      setDoubleTapPosition({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+
+      // Trigger like if not already liked
+      if (!isLiked) {
+        setIsLiked(true);
+        setLikeCount((prev) => prev + 1);
+        setShowLikeAnimation(true);
+        setTimeout(() => setShowLikeAnimation(false), 600);
+      }
+
+      // Show big heart animation
+      setShowDoubleTapHeart(true);
+      setTimeout(() => setShowDoubleTapHeart(false), 800);
+      return;
+    }
+
+    // Single tap - toggle play/pause
     if (videoRef.current.paused) {
       videoRef.current.play();
       setIsPaused(false);
@@ -111,6 +150,21 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
     }
   };
 
+  const handleLike = () => {
+    if (!isLiked) {
+      setShowLikeAnimation(true);
+      setTimeout(() => setShowLikeAnimation(false), 600);
+    }
+    setIsLiked(!isLiked);
+    setLikeCount((prev) => (isLiked ? prev - 1 : prev + 1));
+  };
+
+  const formatCount = (count: number): string => {
+    if (count >= 1000000) return (count / 1000000).toFixed(1) + "M";
+    if (count >= 1000) return (count / 1000).toFixed(1) + "K";
+    return count.toString();
+  };
+
   const truncatedWallet = video.creator_wallet
     ? `${video.creator_wallet.slice(0, 6)}...${video.creator_wallet.slice(-4)}`
     : "Anonymous";
@@ -118,20 +172,35 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
   const isExclusiveLocked = video.is_exclusive && !isUnlocked;
   const isProcessing = isSending || isConfirming;
 
+  const [isMuted, setIsMuted] = useState(true);
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsMuted(!isMuted);
+  };
+
+  // ...
+
   return (
     <div className="relative h-full w-full bg-black">
       {/* Video Element */}
       <video
         ref={videoRef}
         src={video.video_url}
-        className={`absolute inset-0 h-full w-full object-cover transition-all duration-300 ${
-          isExclusiveLocked ? "blur-lg scale-105" : ""
-        }`}
+        className={`absolute inset-0 h-full w-full object-cover transition-all duration-300 ${isExclusiveLocked ? "blur-lg scale-105" : ""
+          }`}
         loop
-        muted
+        muted={isMuted}
         playsInline
         onClick={handleVideoTap}
       />
+
+      {/* Mute Toggle */}
+      <button
+        onClick={toggleMute}
+        className="absolute top-20 right-4 p-2 bg-black/40 backdrop-blur-sm rounded-full text-white/80 hover:text-white transition-colors z-20"
+      >
+        {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+      </button>
 
       {/* Exclusive Content Overlay */}
       {isExclusiveLocked && (
@@ -184,27 +253,68 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
         </div>
       )}
 
+      {/* Double Tap Heart Animation */}
+      <AnimatePresence>
+        {showDoubleTapHeart && (
+          <motion.div
+            initial={{ scale: 0, opacity: 1 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 1.5, opacity: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="absolute pointer-events-none z-30"
+            style={{
+              left: doubleTapPosition.x - 50,
+              top: doubleTapPosition.y - 50,
+            }}
+          >
+            <Heart className="w-[100px] h-[100px] fill-red-500 text-red-500 drop-shadow-lg" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Right Side Actions */}
-      <div className="absolute right-3 bottom-32 flex flex-col items-center gap-5">
+      <div className="absolute right-3 bottom-32 flex flex-col items-center gap-5 z-10">
         {/* Like Button */}
         <button
-          onClick={() => setIsLiked(!isLiked)}
+          onClick={handleLike}
           className="flex flex-col items-center gap-1"
         >
-          <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
-            <Heart
-              className={`w-6 h-6 ${isLiked ? "fill-red-500 text-red-500" : "text-white"}`}
-            />
+          <div className="relative w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
+            <AnimatePresence>
+              {showLikeAnimation && (
+                <motion.div
+                  initial={{ scale: 0, opacity: 1 }}
+                  animate={{ scale: 2, opacity: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="absolute inset-0 flex items-center justify-center"
+                >
+                  <Heart className="w-6 h-6 fill-red-500 text-red-500" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <motion.div
+              animate={showLikeAnimation ? { scale: [1, 1.3, 1] } : {}}
+              transition={{ duration: 0.3 }}
+            >
+              <Heart
+                className={`w-6 h-6 transition-colors duration-200 ${isLiked ? "fill-red-500 text-red-500" : "text-white"
+                  }`}
+              />
+            </motion.div>
           </div>
-          <span className="text-white text-xs font-medium">Like</span>
+          <span className="text-white text-xs font-medium">{formatCount(likeCount)}</span>
         </button>
 
         {/* Comment Button */}
-        <button className="flex flex-col items-center gap-1">
+        <button
+          onClick={() => setIsCommentDrawerOpen(true)}
+          className="flex flex-col items-center gap-1"
+        >
           <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
             <MessageCircle className="w-6 h-6 text-white" />
           </div>
-          <span className="text-white text-xs font-medium">Comment</span>
+          <span className="text-white text-xs font-medium">{formatCount(commentCount)}</span>
         </button>
 
         {/* Share Button */}
@@ -219,10 +329,25 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
         </button>
       </div>
 
+      {/* Comment Drawer */}
+      <CommentDrawer
+        isOpen={isCommentDrawerOpen}
+        onClose={() => setIsCommentDrawerOpen(false)}
+        commentCount={commentCount}
+      />
+
       {/* Bottom Info - positioned above bottom nav */}
       <div className="absolute left-4 right-20 bottom-24 flex flex-col gap-2">
         {/* Creator */}
-        <div className="flex items-center gap-2">
+        <div
+          className="flex items-center gap-2 cursor-pointer active:opacity-80 transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (video.creator_wallet) {
+              router.push(`/profile/${video.creator_wallet}`);
+            }
+          }}
+        >
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#5F31E8] to-[#7C4DFF] flex items-center justify-center">
             <span className="text-white text-sm font-bold">
               {video.creator_wallet?.slice(2, 4).toUpperCase() || "??"}
@@ -232,9 +357,8 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
             {truncatedWallet}
           </span>
           {video.is_exclusive && (
-            <span className={`px-2 py-0.5 rounded-full text-[10px] text-white font-medium ${
-              isUnlocked ? "bg-green-500" : "bg-[#5F31E8]"
-            }`}>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] text-white font-medium ${isUnlocked ? "bg-green-500" : "bg-[#5F31E8]"
+              }`}>
               {isUnlocked ? "UNLOCKED" : "EXCLUSIVE"}
             </span>
           )}

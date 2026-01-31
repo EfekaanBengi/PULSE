@@ -132,7 +132,7 @@ export async function getVideosByCreator(wallet: string): Promise<Video[]> {
   const { data, error } = await supabase
     .from("videos")
     .select("*")
-    .eq("creator_wallet", wallet)
+    .ilike("creator_wallet", wallet)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -141,6 +141,33 @@ export async function getVideosByCreator(wallet: string): Promise<Video[]> {
   }
 
   return data ?? [];
+}
+
+export async function deleteVideo(videoId: string, videoUrl: string): Promise<boolean> {
+  try {
+    // 1. Delete from Storage
+    const urlParts = videoUrl.split("/videos/");
+    if (urlParts.length > 1) {
+      const fileName = urlParts[1];
+      await supabase.storage.from("videos").remove([fileName]);
+    }
+
+    // 2. Delete from Database
+    const { error } = await supabase
+      .from("videos")
+      .delete()
+      .eq("id", videoId);
+
+    if (error) {
+      console.error("Error deleting video from DB:", error.message);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Delete video failed:", error);
+    return false;
+  }
 }
 
 // ============================================
@@ -208,11 +235,11 @@ export async function uploadSubscriptionImage(
 ): Promise<string | null> {
   try {
     const fileExt = file.name.split(".").pop();
-    const fileName = `subscription_${walletAddress.toLowerCase()}_${Date.now()}.${fileExt}`;
-    const filePath = `subscriptions/${fileName}`;
+    const fileName = `image_${walletAddress.toLowerCase()}_${Date.now()}.${fileExt}`;
+    const filePath = fileName;
 
     const { error: uploadError } = await supabase.storage
-      .from("videos")
+      .from("subscriptions")
       .upload(filePath, file, {
         cacheControl: "3600",
         upsert: false,
@@ -224,7 +251,7 @@ export async function uploadSubscriptionImage(
     }
 
     const { data: urlData } = supabase.storage
-      .from("videos")
+      .from("subscriptions")
       .getPublicUrl(filePath);
 
     return urlData.publicUrl;
