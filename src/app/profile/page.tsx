@@ -130,13 +130,22 @@ export default function ProfilePage() {
           </div>
 
           {/* Create Subscription Button */}
-          <button
-            onClick={() => router.push("/create-subscription")}
-            className="px-6 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-white font-medium text-sm transition-colors flex items-center gap-2 border border-white/10"
-          >
-            <Lock className="w-4 h-4 text-[#7C4DFF]" />
-            Manage Subscription
-          </button>
+          <div className="flex items-center gap-3 w-full justify-center">
+            <button
+              onClick={() => router.push("/create-subscription")}
+              className="flex-1 max-w-[160px] px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-white font-medium text-sm transition-colors flex items-center justify-center gap-2 border border-white/10 text-nowrap"
+            >
+              <Lock className="w-4 h-4 text-[#7C4DFF]" />
+              Create Sub
+            </button>
+            <button
+              onClick={() => router.push("/withdraw")}
+              className="flex-1 max-w-[160px] px-4 py-2.5 bg-[#5F31E8] hover:bg-[#7C4DFF] rounded-xl text-white font-medium text-sm transition-colors flex items-center justify-center gap-2 text-nowrap"
+            >
+              <TrendingUp className="w-4 h-4" />
+              Withdraw
+            </button>
+          </div>
 
           {/* Disconnect Button */}
           <button

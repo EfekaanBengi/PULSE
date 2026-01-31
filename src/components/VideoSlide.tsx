@@ -8,6 +8,8 @@ import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from "wa
 import { parseEther } from "viem";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { DUMMY_CREATOR_ADDRESS } from "@/lib/web3";
+import { useHasSubscription } from "@/lib/contracts/hooks";
+import { getUser } from "@/lib/api";
 import CommentDrawer from "./CommentDrawer";
 import type { Video } from "@/types/database";
 
@@ -33,6 +35,22 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
 
   const { isConnected, address } = useAccount();
   const { openConnectModal } = useConnectModal();
+  const [creatorContract, setCreatorContract] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (video.is_exclusive && video.creator_wallet) {
+      getUser(video.creator_wallet).then((u) => {
+        if (u?.subscription_contract_address) {
+          setCreatorContract(u.subscription_contract_address);
+        }
+      });
+    }
+  }, [video.is_exclusive, video.creator_wallet]);
+
+  const { data: hasSubscription } = useHasSubscription(
+    creatorContract as `0x${string}` | undefined,
+    address
+  );
 
   const {
     data: hash,
@@ -178,7 +196,7 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
     : "Anonymous";
 
   const amICreator = address && video.creator_wallet && address.toLowerCase() === video.creator_wallet.toLowerCase();
-  const isExclusiveLocked = video.is_exclusive && !isUnlocked && !amICreator;
+  const isExclusiveLocked = video.is_exclusive && !isUnlocked && !amICreator && !hasSubscription;
   const isProcessing = isSending || isConfirming;
 
   const [isMuted, setIsMuted] = useState(false);

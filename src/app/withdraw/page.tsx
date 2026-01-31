@@ -23,6 +23,7 @@ export default function WithdrawPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [user, setUser] = useState<User | null>(null);
     const [isWithdrawing, setIsWithdrawing] = useState(false);
+    const [subscriberNames, setSubscriberNames] = useState<Record<string, string>>({});
 
     // Get user data to find contract address
     useEffect(() => {
@@ -70,12 +71,15 @@ export default function WithdrawPage() {
         }
     });
 
-    // 2. Prepare calls for ownerOf loop
+    // 2. Prepare calls for ownerOf loop (0-based index)
     const tokenIds = useMemo(() => {
         if (!totalSupply) return [];
         try {
             const count = Number(totalSupply);
-            return Array.from({ length: count }, (_, i) => BigInt(i + 1));
+            // Assuming 0-based index for simple counting (e.g. ERC721A or simple counter starting at 0)
+            // If the contract starts at 1, we might miss the last one and fail the first one.
+            // But OpenZeppelin Contracts typically default to 0-based _nextTokenId.
+            return Array.from({ length: count }, (_, i) => BigInt(i));
         } catch {
             return [];
         }
@@ -102,7 +106,7 @@ export default function WithdrawPage() {
             .map((result, index) => {
                 if (result.status === "success" && result.result) {
                     return {
-                        tokenId: index + 1,
+                        tokenId: index, // Match the query ID (0-based)
                         address: result.result as string,
                     };
                 }
@@ -111,6 +115,37 @@ export default function WithdrawPage() {
             .filter((sub): sub is Subscriber => sub !== null)
             .sort((a, b) => b.tokenId - a.tokenId); // Newest first
     }, [owners]);
+
+    // 5. Fetch User Names for Subscribers
+    useEffect(() => {
+        if (subscribers.length === 0) return;
+
+        async function fetchNames() {
+            const newNames: Record<string, string> = {};
+            const uniqueAddresses = Array.from(new Set(subscribers.map(s => s.address)));
+
+            // Filter out addresses we already have names for (optimization)
+            const toFetch = uniqueAddresses.filter(addr => !subscriberNames[addr]);
+            if (toFetch.length === 0) return;
+
+            await Promise.all(toFetch.map(async (addr) => {
+                try {
+                    const u = await getUser(addr);
+                    if (u && u.username) {
+                        newNames[addr] = u.username;
+                    } else {
+                        newNames[addr] = "Unknown";
+                    }
+                } catch {
+                    newNames[addr] = "Unknown";
+                }
+            }));
+
+            setSubscriberNames(prev => ({ ...prev, ...newNames }));
+        }
+
+        fetchNames();
+    }, [subscribers, subscriberNames]);
 
 
     const handleWithdraw = async () => {
@@ -180,56 +215,69 @@ export default function WithdrawPage() {
                 <h1 className="text-xl font-bold text-white ml-2">Earnings & Subscribers</h1>
             </div>
 
-            {/* Balance Card */}
-            <div className="bg-gradient-to-br from-[#5F31E8] to-[#7C4DFF] rounded-2xl p-6 mb-8 shadow-lg shadow-[#5F31E8]/20 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <TrendingUp className="w-24 h-24 text-white" />
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+                {/* Available Balance */}
+                <div className="col-span-2 bg-gradient-to-br from-[#5F31E8] to-[#7C4DFF] rounded-2xl p-6 shadow-lg shadow-[#5F31E8]/20 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                        <Wallet className="w-24 h-24 text-white" />
+                    </div>
+                    <p className="text-white/80 font-medium mb-1">Available to Withdraw</p>
+                    <div className="flex items-end gap-2 mb-6">
+                        <h2 className="text-4xl font-bold text-white">
+                            {balanceData ? parseFloat(formatEther(balanceData.value)).toFixed(4) : "0.0000"}
+                        </h2>
+                        <span className="text-2xl text-white/80 mb-1">MON</span>
+                    </div>
+
+                    <button
+                        onClick={handleWithdraw}
+                        disabled={!balanceData || balanceData.value === BigInt(0) || isPending || isConfirming || isWithdrawing}
+                        className="w-full py-3 bg-white text-[#5F31E8] rounded-xl font-bold font-lg flex items-center justify-center gap-2 hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        {isPending || isConfirming ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-[#5F31E8] border-t-transparent rounded-full animate-spin" />
+                                Processing...
+                            </>
+                        ) : isSuccess ? (
+                            <>
+                                <Check className="w-5 h-5" />
+                                Withdrawn!
+                            </>
+                        ) : (
+                            <>
+                                <TrendingUp className="w-5 h-5" />
+                                Withdraw Funds
+                            </>
+                        )}
+                    </button>
+                    <p className="text-center text-white/40 text-xs mt-3">
+                        If balance is 0, funds may have been auto-forwarded to your wallet.
+                    </p>
                 </div>
 
-                <p className="text-white/80 font-medium mb-1">Total Balance</p>
-                <h2 className="text-4xl font-bold text-white mb-6">
-                    {balanceData ? parseFloat(formatEther(balanceData.value)).toFixed(4) : "0.0000"} <span className="text-2xl">MON</span>
-                </h2>
+                {/* Lifetime Earnings */}
+                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                    <div className="flex items-center gap-2 mb-2 text-green-500">
+                        <TrendingUp className="w-4 h-4" />
+                        <span className="text-sm font-bold">Total Revenue</span>
+                    </div>
+                    <p className="text-2xl font-bold text-white">
+                        {totalSupply && user?.subscription_price
+                            ? (Number(totalSupply) * user.subscription_price).toFixed(2)
+                            : "0.00"} MON
+                    </p>
+                    <p className="text-white/40 text-xs mt-1">Est. Lifetime Earnings</p>
+                </div>
 
-                <button
-                    onClick={handleWithdraw}
-                    disabled={!balanceData || balanceData.value === 0n || isPending || isConfirming || isWithdrawing}
-                    className="w-full py-3 bg-white text-[#5F31E8] rounded-xl font-bold font-lg flex items-center justify-center gap-2 hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                    {isPending || isConfirming ? (
-                        <>
-                            <div className="w-4 h-4 border-2 border-[#5F31E8] border-t-transparent rounded-full animate-spin" />
-                            Processing...
-                        </>
-                    ) : isSuccess ? (
-                        <>
-                            <Check className="w-5 h-5" />
-                            Withdrawn!
-                        </>
-                    ) : (
-                        <>
-                            <Wallet className="w-5 h-5" />
-                            Withdraw Funds
-                        </>
-                    )}
-                </button>
-            </div>
-
-            {/* Subscribers Stats */}
-            <div className="grid grid-cols-2 gap-4 mb-8">
+                {/* Total Subs */}
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                     <div className="flex items-center gap-2 mb-2 text-[#7C4DFF]">
                         <Users className="w-4 h-4" />
                         <span className="text-sm font-bold">Total Subs</span>
                     </div>
                     <p className="text-2xl font-bold text-white">{totalSupply?.toString() || "0"}</p>
-                </div>
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                    <div className="flex items-center gap-2 mb-2 text-green-500">
-                        <TrendingUp className="w-4 h-4" />
-                        <span className="text-sm font-bold">Price</span>
-                    </div>
-                    <p className="text-2xl font-bold text-white">{user.subscription_price} MON</p>
                 </div>
             </div>
 
@@ -243,31 +291,36 @@ export default function WithdrawPage() {
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {subscribers.map((sub) => (
-                        <div key={sub.tokenId} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 hover:border-white/20 transition-colors">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-xs ring-2 ring-black">
-                                    {sub.address.slice(2, 4).toUpperCase()}
+                    {subscribers.map((sub) => {
+                        const hasName = subscriberNames[sub.address] && subscriberNames[sub.address] !== "Unknown";
+                        return (
+                            <div key={sub.tokenId} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 hover:border-white/20 transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-xs ring-2 ring-black">
+                                        {subscriberNames[sub.address]?.slice(0, 1).toUpperCase() || sub.address.slice(2, 3).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <p className="text-white font-medium text-sm">
+                                            {hasName ? subscriberNames[sub.address] : `${sub.address.slice(0, 6)}...${sub.address.slice(-4)}`}
+                                        </p>
+                                        <p className="text-white/40 text-xs">
+                                            {hasName ? `${sub.address.slice(0, 6)}...${sub.address.slice(-4)} • ` : ""} Token #{sub.tokenId}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-white font-medium font-mono text-sm">
-                                        {sub.address.slice(0, 6)}...{sub.address.slice(-4)}
-                                    </p>
-                                    <p className="text-white/40 text-xs">Token ID #{sub.tokenId}</p>
-                                </div>
-                            </div>
 
-                            <a
-                                href={`https://testnet.monadexplorer.com/address/${sub.address}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="p-2 text-white/40 hover:text-white transition-colors"
-                                title="View on Explorer"
-                            >
-                                <ExternalLink className="w-4 h-4" />
-                            </a>
-                        </div>
-                    ))}
+                                <a
+                                    href={`https://testnet.monadexplorer.com/address/${sub.address}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="p-2 text-white/40 hover:text-white transition-colors"
+                                    title="View on Explorer"
+                                >
+                                    <ExternalLink className="w-4 h-4" />
+                                </a>
+                            </div>
+                        )
+                    })}
                 </div>
             )}
         </div>
