@@ -12,6 +12,11 @@ export interface User {
   wallet_address: string;
   username: string;
   avatar_url: string;
+  subscription_contract_address: string | null;
+  subscription_name: string | null;
+  subscription_symbol: string | null;
+  subscription_price: number | null;
+  subscription_image_url: string | null;
 }
 
 export type VideoInsert = Omit<Video, "id" | "created_at"> & {

@@ -1,0 +1,155 @@
+// ABI definitions for smart contracts
+
+export const SubscriptionFactoryABI = [
+  {
+    type: "function",
+    name: "deployCreatorToken",
+    inputs: [
+      { name: "_name", type: "string", internalType: "string" },
+      { name: "_symbol", type: "string", internalType: "string" },
+      { name: "_price", type: "uint256", internalType: "uint256" },
+      { name: "_maxSupply", type: "uint256", internalType: "uint256" },
+      { name: "_maxPerWallet", type: "uint256", internalType: "uint256" },
+      { name: "_imageURI", type: "string", internalType: "string" },
+    ],
+    outputs: [{ name: "", type: "address", internalType: "address" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "getCreatorContracts",
+    inputs: [{ name: "creator", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "address[]", internalType: "address[]" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "creatorContracts",
+    inputs: [
+      { name: "", type: "address", internalType: "address" },
+      { name: "", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [{ name: "", type: "address", internalType: "address" }],
+    stateMutability: "view",
+  },
+  {
+    type: "event",
+    name: "CreatorTokenDeployed",
+    inputs: [
+      { name: "creator", type: "address", indexed: true, internalType: "address" },
+      { name: "contractAddress", type: "address", indexed: true, internalType: "address" },
+      { name: "name", type: "string", indexed: false, internalType: "string" },
+      { name: "symbol", type: "string", indexed: false, internalType: "string" },
+      { name: "price", type: "uint256", indexed: false, internalType: "uint256" },
+      { name: "maxSupply", type: "uint256", indexed: false, internalType: "uint256" },
+    ],
+    anonymous: false,
+  },
+] as const;
+
+export const CreatorNFTABI = [
+  {
+    type: "function",
+    name: "mint",
+    inputs: [],
+    outputs: [],
+    stateMutability: "payable",
+  },
+  {
+    type: "function",
+    name: "hasSubscription",
+    inputs: [{ name: "wallet", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "price",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "maxSupply",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "maxPerWallet",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "totalSupply",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "mintedBy",
+    inputs: [{ name: "wallet", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "name",
+    inputs: [],
+    outputs: [{ name: "", type: "string", internalType: "string" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "symbol",
+    inputs: [],
+    outputs: [{ name: "", type: "string", internalType: "string" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "imageURI",
+    inputs: [],
+    outputs: [{ name: "", type: "string", internalType: "string" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "owner",
+    inputs: [],
+    outputs: [{ name: "", type: "address", internalType: "address" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "balanceOf",
+    inputs: [{ name: "owner", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "error",
+    name: "InsufficientPayment",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "MaxSupplyReached",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "WalletLimitReached",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "TransferFailed",
+    inputs: [],
+  },
+] as const;

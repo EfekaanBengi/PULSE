@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type { Video, VideoInsert } from "@/types/database";
+import type { Video, VideoInsert, User } from "@/types/database";
 
 export interface UploadProgress {
   progress: number;
@@ -141,4 +141,115 @@ export async function getVideosByCreator(wallet: string): Promise<Video[]> {
   }
 
   return data ?? [];
+}
+
+// ============================================
+// User & Subscription Functions
+// ============================================
+
+export async function getUser(walletAddress: string): Promise<User | null> {
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("wallet_address", walletAddress.toLowerCase())
+    .single();
+
+  if (error) {
+    // User not found is not an error for our purposes
+    if (error.code === "PGRST116") {
+      return null;
+    }
+    console.error("Error fetching user:", error.message);
+    return null;
+  }
+
+  return data;
+}
+
+export async function getUserByWallet(walletAddress: string): Promise<User | null> {
+  return getUser(walletAddress);
+}
+
+export interface SubscriptionData {
+  subscription_contract_address: string;
+  subscription_name: string;
+  subscription_symbol: string;
+  subscription_price: number;
+  subscription_image_url: string;
+}
+
+export async function upsertUserSubscription(
+  walletAddress: string,
+  subscriptionData: SubscriptionData
+): Promise<User | null> {
+  const { data, error } = await supabase
+    .from("users")
+    .upsert(
+      {
+        wallet_address: walletAddress.toLowerCase(),
+        ...subscriptionData,
+      } as never,
+      { onConflict: "wallet_address" }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error upserting user subscription:", error.message);
+    return null;
+  }
+
+  return data;
+}
+
+export async function uploadSubscriptionImage(
+  file: File,
+  walletAddress: string
+): Promise<string | null> {
+  try {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `subscription_${walletAddress.toLowerCase()}_${Date.now()}.${fileExt}`;
+    const filePath = `subscriptions/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("videos")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Subscription image upload error:", uploadError.message);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("videos")
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
+  } catch (error) {
+    console.error("Failed to upload subscription image:", error);
+    return null;
+  }
+}
+
+export async function getCreatorSubscription(
+  creatorWallet: string
+): Promise<Pick<User, "subscription_contract_address" | "subscription_name" | "subscription_price"> | null> {
+  const { data, error } = await supabase
+    .from("users")
+    .select("subscription_contract_address, subscription_name, subscription_price")
+    .eq("wallet_address", creatorWallet.toLowerCase())
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null;
+    }
+    console.error("Error fetching creator subscription:", error.message);
+    return null;
+  }
+
+  return data;
 }

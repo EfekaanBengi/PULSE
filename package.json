@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "compile": "hardhat compile",
+    "deploy": "hardhat run scripts/deploy.ts --network monadTestnet",
+    "deploy:local": "hardhat run scripts/deploy.ts --network hardhat"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
@@ -27,12 +30,16 @@
     "wagmi": "^2.19.5"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.0.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^18.3.27",
     "@types/react-dom": "^18.3.7",
+    "dotenv": "^16.4.5",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "hardhat": "^2.22.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
