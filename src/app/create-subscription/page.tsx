@@ -216,7 +216,7 @@ export default function CreateSubscriptionPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black pb-20 pt-4 px-4">
+    <div className="min-h-screen bg-black pb-40 pt-4 px-4">
       {/* Header */}
       <div className="flex items-center justify-center mb-6">
         <h1 className="text-xl font-bold text-white">Create Subscription</h1>
@@ -383,13 +383,12 @@ export default function CreateSubscriptionPage() {
           </div>
           <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                status === "error"
+              className={`h-full rounded-full transition-all duration-300 ${status === "error"
                   ? "bg-red-500"
                   : status === "complete"
-                  ? "bg-green-500"
-                  : "bg-gradient-to-r from-[#5F31E8] to-[#7C4DFF]"
-              }`}
+                    ? "bg-green-500"
+                    : "bg-gradient-to-r from-[#5F31E8] to-[#7C4DFF]"
+                }`}
               style={{ width: `${getProgress()}%` }}
             />
           </div>

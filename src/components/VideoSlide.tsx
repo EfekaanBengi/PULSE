@@ -31,7 +31,7 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
   const [isCommentDrawerOpen, setIsCommentDrawerOpen] = useState(false);
   const [commentCount] = useState(() => Math.floor(Math.random() * 500) + 10);
 
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const { openConnectModal } = useConnectModal();
 
   const {
@@ -69,8 +69,9 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
   useEffect(() => {
     if (!videoRef.current) return;
 
-    // Only auto-play if not exclusive or already unlocked
-    const canPlay = !video.is_exclusive || isUnlocked;
+    // Only auto-play if not exclusive or already unlocked or creator
+    const amICreator = address && video.creator_wallet && address.toLowerCase() === video.creator_wallet.toLowerCase();
+    const canPlay = !video.is_exclusive || isUnlocked || amICreator;
 
     if (isActive && canPlay) {
       videoRef.current.play().catch(() => {
@@ -89,7 +90,8 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
     if (!videoRef.current) return;
 
     // Prevent interaction if exclusive and locked
-    if (video.is_exclusive && !isUnlocked) return;
+    const amICreator = address && video.creator_wallet && address.toLowerCase() === video.creator_wallet.toLowerCase();
+    if (video.is_exclusive && !isUnlocked && !amICreator) return;
 
     const now = Date.now();
     const timeSinceLastTap = now - lastTapRef.current;
@@ -169,7 +171,8 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
     ? `${video.creator_wallet.slice(0, 6)}...${video.creator_wallet.slice(-4)}`
     : "Anonymous";
 
-  const isExclusiveLocked = video.is_exclusive && !isUnlocked;
+  const amICreator = address && video.creator_wallet && address.toLowerCase() === video.creator_wallet.toLowerCase();
+  const isExclusiveLocked = video.is_exclusive && !isUnlocked && !amICreator;
   const isProcessing = isSending || isConfirming;
 
   const [isMuted, setIsMuted] = useState(true);

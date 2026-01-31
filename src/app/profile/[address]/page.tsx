@@ -61,7 +61,7 @@ export default function PublicProfilePage() {
         : "";
 
     return (
-        <div className="min-h-screen bg-black pb-20">
+        <div className="min-h-screen bg-black pb-40">
             {/* Profile Header */}
             <div className="relative pt-8 pb-6 px-4">
                 {/* Background Gradient */}

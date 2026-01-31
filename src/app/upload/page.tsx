@@ -88,7 +88,7 @@ export default function UploadPage() {
     : "";
 
   return (
-    <div className="min-h-screen bg-black pb-20 pt-4 px-4">
+    <div className="min-h-screen bg-black pb-40 pt-4 px-4">
       {/* Header */}
       <div className="flex items-center justify-center mb-6">
         <h1 className="text-xl font-bold text-white">Upload Video</h1>

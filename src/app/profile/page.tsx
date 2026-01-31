@@ -63,7 +63,7 @@ export default function ProfilePage() {
   // Not connected state
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center px-4 pb-20">
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center px-4 pb-40">
         <div className="w-20 h-20 rounded-full bg-[#5F31E8]/20 flex items-center justify-center mb-6">
           <Wallet className="w-10 h-10 text-[#7C4DFF]" />
         </div>
@@ -82,7 +82,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-black pb-20">
+    <div className="min-h-screen bg-black pb-40">
       {/* Profile Header */}
       <div className="relative pt-8 pb-6 px-4">
         {/* Background Gradient */}
