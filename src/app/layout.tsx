@@ -43,7 +43,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white`}
       >
-        <main className="h-full w-full overflow-y-auto pb-14">
+        <main className="h-full w-full">
           {children}
         </main>
         <BottomNav />
