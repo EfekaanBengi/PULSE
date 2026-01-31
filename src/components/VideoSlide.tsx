@@ -1,7 +1,11 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
-import { Heart, Share2, MessageCircle } from "lucide-react";
+import { Heart, Share2, MessageCircle, Lock, Check } from "lucide-react";
+import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
+import { parseEther } from "viem";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { DUMMY_CREATOR_ADDRESS } from "@/lib/web3";
 import type { Video } from "@/types/database";
 
 interface VideoSlideProps {
@@ -13,23 +17,68 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLiked, setIsLiked] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+
+  const { isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
+
+  const {
+    data: hash,
+    sendTransaction,
+    isPending: isSending,
+    reset: resetTransaction
+  } = useSendTransaction();
+
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash,
+  });
+
+  // Handle transaction success
+  useEffect(() => {
+    if (isConfirmed && !isUnlocked) {
+      setIsUnlocked(true);
+      setShowSuccessToast(true);
+      resetTransaction();
+
+      // Auto-play the video after unlocking
+      if (videoRef.current && isActive) {
+        videoRef.current.play().catch(() => {});
+      }
+
+      // Hide toast after 3 seconds
+      const timer = setTimeout(() => {
+        setShowSuccessToast(false);
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isConfirmed, isUnlocked, isActive, resetTransaction]);
 
   useEffect(() => {
     if (!videoRef.current) return;
 
-    if (isActive) {
+    // Only auto-play if not exclusive or already unlocked
+    const canPlay = !video.is_exclusive || isUnlocked;
+
+    if (isActive && canPlay) {
       videoRef.current.play().catch(() => {
         // Autoplay blocked, user needs to interact
       });
       setIsPaused(false);
     } else {
       videoRef.current.pause();
-      videoRef.current.currentTime = 0;
+      if (!isActive) {
+        videoRef.current.currentTime = 0;
+      }
     }
-  }, [isActive]);
+  }, [isActive, video.is_exclusive, isUnlocked]);
 
   const handleVideoTap = () => {
     if (!videoRef.current) return;
+
+    // Prevent interaction if exclusive and locked
+    if (video.is_exclusive && !isUnlocked) return;
 
     if (videoRef.current.paused) {
       videoRef.current.play();
@@ -38,6 +87,19 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
       videoRef.current.pause();
       setIsPaused(true);
     }
+  };
+
+  const handleUnlock = () => {
+    if (!isConnected) {
+      openConnectModal?.();
+      return;
+    }
+
+    // Send 1 MON to the dummy creator address
+    sendTransaction({
+      to: DUMMY_CREATOR_ADDRESS,
+      value: parseEther("1"),
+    });
   };
 
   const handleShare = async () => {
@@ -53,21 +115,68 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
     ? `${video.creator_wallet.slice(0, 6)}...${video.creator_wallet.slice(-4)}`
     : "Anonymous";
 
+  const isExclusiveLocked = video.is_exclusive && !isUnlocked;
+  const isProcessing = isSending || isConfirming;
+
   return (
     <div className="relative h-full w-full bg-black">
       {/* Video Element */}
       <video
         ref={videoRef}
         src={video.video_url}
-        className="absolute inset-0 h-full w-full object-cover"
+        className={`absolute inset-0 h-full w-full object-cover transition-all duration-300 ${
+          isExclusiveLocked ? "blur-lg scale-105" : ""
+        }`}
         loop
         muted
         playsInline
         onClick={handleVideoTap}
       />
 
+      {/* Exclusive Content Overlay */}
+      {isExclusiveLocked && (
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-[#5F31E8]/20 flex items-center justify-center">
+              <Lock className="w-8 h-8 text-[#7C4DFF]" />
+            </div>
+            <div className="text-center">
+              <p className="text-white font-semibold text-lg mb-1">Exclusive Content</p>
+              <p className="text-white/60 text-sm">Unlock to watch this video</p>
+            </div>
+            <button
+              onClick={handleUnlock}
+              disabled={isProcessing}
+              className="px-6 py-3 bg-[#5F31E8] hover:bg-[#7C4DFF] disabled:bg-[#5F31E8]/50 rounded-full text-white font-semibold text-base transition-all duration-200 flex items-center gap-2"
+            >
+              {isProcessing ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {isSending ? "Confirm in Wallet..." : "Processing..."}
+                </>
+              ) : (
+                <>
+                  <Lock className="w-4 h-4" />
+                  Unlock for 1 MON
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {showSuccessToast && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-2 px-4 py-3 bg-green-500 rounded-full shadow-lg">
+            <Check className="w-5 h-5 text-white" />
+            <span className="text-white font-medium">Content Unlocked!</span>
+          </div>
+        </div>
+      )}
+
       {/* Pause Indicator */}
-      {isPaused && (
+      {isPaused && !isExclusiveLocked && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="w-20 h-20 rounded-full bg-black/40 flex items-center justify-center">
             <div className="w-0 h-0 border-t-[15px] border-t-transparent border-l-[25px] border-l-white border-b-[15px] border-b-transparent ml-2" />
@@ -123,8 +232,10 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
             {truncatedWallet}
           </span>
           {video.is_exclusive && (
-            <span className="px-2 py-0.5 bg-[#5F31E8] rounded-full text-[10px] text-white font-medium">
-              EXCLUSIVE
+            <span className={`px-2 py-0.5 rounded-full text-[10px] text-white font-medium ${
+              isUnlocked ? "bg-green-500" : "bg-[#5F31E8]"
+            }`}>
+              {isUnlocked ? "UNLOCKED" : "EXCLUSIVE"}
             </span>
           )}
         </div>
@@ -134,8 +245,8 @@ export default function VideoSlide({ video, isActive }: VideoSlideProps) {
           {video.description}
         </p>
 
-        {/* Price if exclusive */}
-        {video.is_exclusive && video.price > 0 && (
+        {/* Price if exclusive and locked */}
+        {video.is_exclusive && !isUnlocked && video.price > 0 && (
           <div className="flex items-center gap-1">
             <span className="text-[#7C4DFF] font-bold text-sm">
               {video.price} MON

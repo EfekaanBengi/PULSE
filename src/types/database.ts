@@ -14,16 +14,20 @@ export interface User {
   avatar_url: string;
 }
 
+export type VideoInsert = Omit<Video, "id" | "created_at"> & {
+  id?: string;
+  created_at?: string;
+};
+
+export type VideoUpdate = Partial<Omit<Video, "id">>;
+
 export interface Database {
   public: {
     Tables: {
       videos: {
         Row: Video;
-        Insert: Omit<Video, "id" | "created_at"> & {
-          id?: string;
-          created_at?: string;
-        };
-        Update: Partial<Omit<Video, "id">>;
+        Insert: VideoInsert;
+        Update: VideoUpdate;
       };
       users: {
         Row: User;
@@ -31,5 +35,9 @@ export interface Database {
         Update: Partial<User>;
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }
