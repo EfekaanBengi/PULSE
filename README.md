@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PULSE ⚡️
+**TikTok-style video dApp on Monad Testnet** — creators can upload videos, mark them as **exclusive**, and set up a **Subscription NFT** collection for paid access.
 
-## Getting Started
+Live demo: https://monadshot.vercel.app :contentReference[oaicite:1]{index=1}
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## ✨ Features
+- **Vertical video feed** (Swiper) + smooth mobile-first UI :contentReference[oaicite:2]{index=2}  
+- **Wallet connect** via RainbowKit + Wagmi (Monad Testnet configured) :contentReference[oaicite:3]{index=3}  
+- **Upload video** to Supabase Storage + save metadata to Supabase DB :contentReference[oaicite:4]{index=4}  
+- **Exclusive content toggle** on upload (creators only) :contentReference[oaicite:5]{index=5}  
+- **Create Subscription**: deploy your own ERC-721 “CreatorNFT” contract via factory :contentReference[oaicite:6]{index=6}  
+- **Subscription check**: if user owns creator’s NFT => content unlock :contentReference[oaicite:7]{index=7}  
+- **Earnings / Subscribers page** (reads contract balance + token owners via multicall) :contentReference[oaicite:8]{index=8}  
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> ⚠️ MVP note: Unlock flow currently sends **1 MON** to a dummy address (`0x...dEaD`) as a placeholder. In production you’d typically call the creator’s `mint()` on their `CreatorNFT` contract. :contentReference[oaicite:9]{index=9}
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🧱 Tech Stack
+- **Next.js 16** (App Router) :contentReference[oaicite:10]{index=10}  
+- **TypeScript**, **TailwindCSS v4**, **Framer Motion** :contentReference[oaicite:11]{index=11}  
+- **Wagmi + RainbowKit + Viem** (wallet, reads/writes) :contentReference[oaicite:12]{index=12}  
+- **Hardhat** (deploy to Monad Testnet) :contentReference[oaicite:13]{index=13}  
+- **Supabase** (Storage + Postgres) :contentReference[oaicite:14]{index=14}  
+- **PWA** enabled via `@ducanh2912/next-pwa` :contentReference[oaicite:15]{index=15}  
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 🔗 Smart Contracts
+### `SubscriptionFactory.sol`
+Creators deploy their own `CreatorNFT` contracts using:
+- `deployCreatorToken(name, symbol, price, maxSupply, maxPerWallet, imageURI)` :contentReference[oaicite:16]{index=16}  
+- Emits `CreatorTokenDeployed(creator, contractAddress, ...)` :contentReference[oaicite:17]{index=17}  
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### `CreatorNFT.sol`
+ERC-721 subscription NFT contract:
+- `mint()` is **payable**, checks limits, then forwards funds to creator (`owner()`) :contentReference[oaicite:18]{index=18}  
+- `hasSubscription(wallet)` returns true if wallet owns at least one token :contentReference[oaicite:19]{index=19}  
+- Metadata is **on-chain** (`tokenURI` returns base64 JSON) :contentReference[oaicite:20]{index=20}  
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
